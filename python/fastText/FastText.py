@@ -251,6 +251,11 @@ class _FastText():
             qnorm
         )
 
+    def find_nn(self, word, k=10, ban_set=set()):
+        dim = self.get_dimension()
+        b = fasttext.Vector(dim)
+        return self.f.findNN(word, k, b, ban_set)
+
 
 # TODO:
 # Not supported:

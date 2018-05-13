@@ -325,5 +325,23 @@ PYBIND11_MODULE(fasttext_pybind, m) {
             return std::pair<std::vector<std::string>, std::vector<int32_t>>(
                 subwords, ngrams);
           })
-      .def("isQuant", [](fasttext::FastText& m) { return m.isQuant(); });
+      .def("isQuant", [](fasttext::FastText& m) { return m.isQuant(); })
+      .def(
+          "findNN",
+          [](fasttext::FastText& m, const std::string word,
+             const int k, fasttext::Vector& queryVec,
+             std::set<std::string> banSet){
+              std::vector<std::pair<fasttext::real, std::string>> results;
+              std::shared_ptr<const fasttext::Dictionary> dict = m.getDictionary();
+              m.getWordVector(queryVec, word);
+              fasttext::Matrix wordVectors(dict->nwords(), m.getDimension());
+              m.precomputeWordVectors(wordVectors);
+              m.findNN(
+                  wordVectors,
+                  queryVec,
+                  k,
+                  banSet,
+                  results);
+              return results;
+          });
 }
