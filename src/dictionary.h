@@ -10,6 +10,7 @@
 #pragma once
 
 #include <vector>
+#include <tuple>
 #include <string>
 #include <istream>
 #include <ostream>
@@ -19,6 +20,7 @@
 
 #include "args.h"
 #include "real.h"
+#include "urlhandler.h"
 
 namespace fasttext {
 
@@ -39,6 +41,9 @@ class Dictionary {
 
     int32_t find(const std::string&) const;
     int32_t find(const std::string&, uint32_t h) const;
+    int32_t find(const std::string&, const std::vector<int32_t>&, const std::vector<std::string>&) const;
+    int32_t find(const std::string&, uint32_t h, const std::vector<int32_t>& v, const std::vector<std::string>&)  const;
+    int32_t mapMainWordtoId(const std::string&) const;
     void initTableDiscard();
     void initNgrams();
     void reset(std::istream&) const;
@@ -46,8 +51,10 @@ class Dictionary {
     void addSubwords(std::vector<int32_t>&, const std::string&, int32_t) const;
 
     std::shared_ptr<Args> args_;
+    std::vector<int32_t> mainWord2int_;
     std::vector<int32_t> word2int_;
-    std::vector<entry> words_;
+    std::vector<entry> words_; /* Note: Currently, we precompute the ngrams for faster training */
+    std::vector<std::string> mainWords_; /* Note: We need to keep track of the mainWords separately from the word entries under the current architecture */
 
     std::vector<real> pdiscard_;
     int32_t size_;
@@ -107,6 +114,9 @@ class Dictionary {
     bool isPruned() { return pruneidx_size_ >= 0; }
     void dump(std::ostream&) const;
     void init();
+
+    std::tuple<std::string, std::string> extractMainSub(const std::string& w);
+    std::string extractMain(const std::string& w);
 };
 
 }

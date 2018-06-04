@@ -17,6 +17,7 @@
 #include <iterator>
 #include <cmath>
 #include <stdexcept>
+#include <set>
 
 namespace fasttext {
 
@@ -25,12 +26,20 @@ const std::string Dictionary::BOW = "<";
 const std::string Dictionary::EOW = ">";
 
 Dictionary::Dictionary(std::shared_ptr<Args> args) : args_(args),
-  word2int_(MAX_VOCAB_SIZE, -1), size_(0), nwords_(0), nlabels_(0),
+  word2int_(MAX_VOCAB_SIZE, -1), mainWord2int_(MAX_VOCAB_SIZE / 5, -1), size_(0), nwords_(0), nlabels_(0),
   ntokens_(0), pruneidx_size_(-1) {}
 
 Dictionary::Dictionary(std::shared_ptr<Args> args, std::istream& in) : args_(args),
   size_(0), nwords_(0), nlabels_(0), ntokens_(0), pruneidx_size_(-1) {
   load(in);
+}
+
+std::tuple<std::string, std::string> Dictionary::extractMainSub(const std::string& w){
+    return std::make_tuple(w, w);
+}
+
+std::string Dictionary::extractMain(const std::string& w){
+    return std::get<0>(extractMainSub(w));
 }
 
 int32_t Dictionary::find(const std::string& w) const {
@@ -46,8 +55,28 @@ int32_t Dictionary::find(const std::string& w, uint32_t h) const {
   return id;
 }
 
+int32_t Dictionary::find(const std::string& w, uint32_t h, const std::vector<int32_t>& hashtoidx, const std::vector<std::string>& idxtoword) const {
+  int32_t vecSize = hashtoidx.size();
+  int32_t id = h % vecSize;
+  while (hashtoidx[id] != -1 && idxtoword[hashtoidx[id]] != w) {
+    id = (id + 1) % vecSize;
+  }
+  return id;
+}
+
+int32_t Dictionary::find(const std::string& w, const std::vector<int32_t>& hashtoidx, const std::vector<std::string>& idxtoword) const {
+  return find(w, hash(w), hashtoidx, idxtoword);
+}
+
+int32_t Dictionary::mapMainWordtoId(const std::string& w) const {
+    int32_t id =  mainWord2int_[find(w, mainWord2int_, mainWords_)];
+    assert(id >= 0);
+    return id;
+}
+
 void Dictionary::add(const std::string& w) {
   int32_t h = find(w);
+  /* compute the word index using */
   ntokens_++;
   if (word2int_[h] == -1) {
     entry e;
@@ -87,7 +116,7 @@ const std::vector<int32_t> Dictionary::getSubwords(
   }
   std::vector<int32_t> ngrams;
   if (word != EOS) {
-    computeSubwords(BOW + word + EOW, ngrams);
+    computeSubwords(word, ngrams);
   }
   return ngrams;
 }
@@ -103,7 +132,7 @@ void Dictionary::getSubwords(const std::string& word,
     substrings.push_back(words_[i].word);
   }
   if (word != EOS) {
-    computeSubwords(BOW + word + EOW, ngrams, substrings);
+    computeSubwords(word, ngrams, substrings);
   }
 }
 
@@ -152,6 +181,7 @@ uint32_t Dictionary::hash(const std::string& str) const {
 void Dictionary::computeSubwords(const std::string& word,
                                std::vector<int32_t>& ngrams,
                                std::vector<std::string>& substrings) const {
+  std::string fullWord = BOW + word + EOW;
   for (size_t i = 0; i < word.size(); i++) {
     std::string ngram;
     if ((word[i] & 0xC0) == 0x80) continue;
@@ -171,6 +201,7 @@ void Dictionary::computeSubwords(const std::string& word,
 
 void Dictionary::computeSubwords(const std::string& word,
                                std::vector<int32_t>& ngrams) const {
+  std::string fullWord = BOW + word + EOW;
   for (size_t i = 0; i < word.size(); i++) {
     std::string ngram;
     if ((word[i] & 0xC0) == 0x80) continue;
@@ -188,12 +219,13 @@ void Dictionary::computeSubwords(const std::string& word,
 }
 
 void Dictionary::initNgrams() {
+  std::string mainWord;
   for (size_t i = 0; i < size_; i++) {
-    std::string word = BOW + words_[i].word + EOW;
+    mainWord = extractMain(words_[i].word);
     words_[i].subwords.clear();
-    words_[i].subwords.push_back(i);
+    words_[i].subwords.push_back(mapMainWordtoId(mainWord));
     if (words_[i].word != EOS) {
-      computeSubwords(word, words_[i].subwords);
+      computeSubwords(words_[i].word, words_[i].subwords);
     }
   }
 }
@@ -266,10 +298,21 @@ void Dictionary::threshold(int64_t t, int64_t tl) {
   nwords_ = 0;
   nlabels_ = 0;
   std::fill(word2int_.begin(), word2int_.end(), -1);
+  std::fill(mainWord2int_.begin(), mainWord2int_.end(), -1);
+
+  std::set<std::string> seenWords;
   for (auto it = words_.begin(); it != words_.end(); ++it) {
+    std::string mainWord = extractMain(it->word);
+    int32_t mh = find(mainWord, mainWord2int_, mainWords_);
     int32_t h = find(it->word);
     word2int_[h] = size_++;
-    if (it->type == entry_type::word) nwords_++;
+    if (seenWords.find(mainWord) == seenWords.end() && it->type == entry_type::word){
+        seenWords.insert(mainWord);
+        mainWords_.push_back(mainWord);
+        mainWord2int_[mh] = nwords_;
+        nwords_++;
+    }
+
     if (it->type == entry_type::label) nlabels_++;
   }
 }
