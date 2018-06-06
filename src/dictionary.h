@@ -41,8 +41,8 @@ class Dictionary {
 
     int32_t find(const std::string&) const;
     int32_t find(const std::string&, uint32_t h) const;
-    int32_t find(const std::string&, const std::vector<int32_t>&, const std::vector<std::string>&) const;
-    int32_t find(const std::string&, uint32_t h, const std::vector<int32_t>& v, const std::vector<std::string>&)  const;
+    int32_t find(const std::string&, const std::vector<int32_t>&, const std::vector<entry>&) const;
+    int32_t find(const std::string&, uint32_t h, const std::vector<int32_t>& v, const std::vector<entry>&)  const;
     int32_t mapMainWordtoId(const std::string&) const;
     void initTableDiscard();
     void initNgrams();
@@ -54,7 +54,7 @@ class Dictionary {
     std::vector<int32_t> mainWord2int_;
     std::vector<int32_t> word2int_;
     std::vector<entry> words_; /* Note: Currently, we precompute the ngrams for faster training */
-    std::vector<std::string> mainWords_; /* Note: We need to keep track of the mainWords separately from the word entries under the current architecture */
+    std::vector<entry> mainWords_; /* Note: We need to keep track of the mainWords separately from the word entries under the current architecture */
 
     std::vector<real> pdiscard_;
     int32_t size_;

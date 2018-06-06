@@ -55,16 +55,16 @@ int32_t Dictionary::find(const std::string& w, uint32_t h) const {
   return id;
 }
 
-int32_t Dictionary::find(const std::string& w, uint32_t h, const std::vector<int32_t>& hashtoidx, const std::vector<std::string>& idxtoword) const {
+int32_t Dictionary::find(const std::string& w, uint32_t h, const std::vector<int32_t>& hashtoidx, const std::vector<entry>& idxtoword) const {
   int32_t vecSize = hashtoidx.size();
   int32_t id = h % vecSize;
-  while (hashtoidx[id] != -1 && idxtoword[hashtoidx[id]] != w) {
+  while (hashtoidx[id] != -1 && idxtoword[hashtoidx[id]].word != w) {
     id = (id + 1) % vecSize;
   }
   return id;
 }
 
-int32_t Dictionary::find(const std::string& w, const std::vector<int32_t>& hashtoidx, const std::vector<std::string>& idxtoword) const {
+int32_t Dictionary::find(const std::string& w, const std::vector<int32_t>& hashtoidx, const std::vector<entry>& idxtoword) const {
   return find(w, hash(w), hashtoidx, idxtoword);
 }
 
@@ -76,7 +76,6 @@ int32_t Dictionary::mapMainWordtoId(const std::string& w) const {
 
 void Dictionary::add(const std::string& w) {
   int32_t h = find(w);
-  /* compute the word index using */
   ntokens_++;
   if (word2int_[h] == -1) {
     entry e;
@@ -87,6 +86,22 @@ void Dictionary::add(const std::string& w) {
     word2int_[h] = size_++;
   } else {
     words_[word2int_[h]].count++;
+  }
+  /* handle main word */
+  if(getType(w) == entry_type::word){
+    std::string mainWord = extractMain(w);
+    int32_t mh = find(mainWord, mainWord2int_, mainWords_);
+    if (mainWord2int_[mh] == -1){
+      entry me;
+      me.word = mainWord;
+      me.count = 1;
+      me.type = entry_type::word;
+      mainWords_.push_back(me);
+      mainWord2int_[mh] = nwords_;
+      nwords_++;
+    }else{
+      mainWords_[mainWord2int_[mh]].count++;
+    }
   }
 }
 
@@ -295,24 +310,17 @@ void Dictionary::threshold(int64_t t, int64_t tl) {
       }), words_.end());
   words_.shrink_to_fit();
   size_ = 0;
-  nwords_ = 0;
+  // TODO: Implement mainWord pruning functionality
+  //nwords_ = 0;
   nlabels_ = 0;
   std::fill(word2int_.begin(), word2int_.end(), -1);
-  std::fill(mainWord2int_.begin(), mainWord2int_.end(), -1);
+  //std::fill(mainWord2int_.begin(), mainWord2int_.end(), -1);
 
-  std::set<std::string> seenWords;
   for (auto it = words_.begin(); it != words_.end(); ++it) {
+    int32_t h = find(it->word);
     std::string mainWord = extractMain(it->word);
     int32_t mh = find(mainWord, mainWord2int_, mainWords_);
-    int32_t h = find(it->word);
     word2int_[h] = size_++;
-    if (seenWords.find(mainWord) == seenWords.end() && it->type == entry_type::word){
-        seenWords.insert(mainWord);
-        mainWords_.push_back(mainWord);
-        mainWord2int_[mh] = nwords_;
-        nwords_++;
-    }
-
     if (it->type == entry_type::label) nlabels_++;
   }
 }
@@ -457,6 +465,13 @@ void Dictionary::save(std::ostream& out) const {
     out.write((char*) &(pair.first), sizeof(int32_t));
     out.write((char*) &(pair.second), sizeof(int32_t));
   }
+  assert(mainWords_.size() == nwords_);
+  for(const entry e: mainWords_){
+      out.write(e.word.data(), e.word.size() * sizeof(char));
+      out.put(0);
+      out.write((char*) &(e.count), sizeof(int64_t));
+      out.write((char*) &(e.type), sizeof(entry_type));
+  }
 }
 
 void Dictionary::load(std::istream& in) {
@@ -484,14 +499,36 @@ void Dictionary::load(std::istream& in) {
     in.read((char*) &second, sizeof(int32_t));
     pruneidx_[first] = second;
   }
-  initTableDiscard();
-  initNgrams();
 
+  /* Create index */
   int32_t word2intsize = std::ceil(size_ / 0.7);
   word2int_.assign(word2intsize, -1);
   for (int32_t i = 0; i < size_; i++) {
     word2int_[find(words_[i].word)] = i;
   }
+
+  /* Load main words */
+  for(int32_t i = 0; i < nwords_; i++){
+    char c;
+    std::string word;
+    entry e;
+    while ((c = in.get()) != 0) {
+      e.word.push_back(c);
+    }
+    in.read((char*) &e.count, sizeof(int64_t));
+    in.read((char*) &e.type, sizeof(entry_type));
+    mainWords_.push_back(e);
+  }
+  /* Create index for main words */
+  int32_t mainWord2intsize = std::ceil(size_ / 0.7);
+  mainWord2int_.assign(mainWord2intsize, -1);
+  for (int32_t i = 0; i < nwords_; i++) {
+    mainWord2int_[find(mainWords_[i].word, mainWord2int_, mainWords_)] = i;
+  }
+
+  /* This needs to come after initialization of mainWord index */
+  initTableDiscard();
+  initNgrams();
 }
 
 void Dictionary::init() {
