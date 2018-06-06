@@ -24,7 +24,7 @@ namespace fasttext {
 const std::string Dictionary::EOS = "</s>";
 const std::string Dictionary::BOW = "<";
 const std::string Dictionary::EOW = ">";
-const std::string Dictionary::DELIM = "+";
+const char Dictionary::DELIM = '+';
 
 Dictionary::Dictionary(std::shared_ptr<Args> args) : args_(args),
   word2int_(MAX_VOCAB_SIZE, -1), mainWord2int_(MAX_VOCAB_SIZE / 5, -1), size_(0), nwords_(0), nlabels_(0),
@@ -39,7 +39,8 @@ std::tuple<std::string, std::string> Dictionary::extractMainSub(const std::strin
   std::string main;
   std::string sub;
   bool is_main = true;
-  for(char c: w){
+  for(int i =0; i < w.size(); i++){
+    char c = w[i];
     if(c == DELIM){
       is_main = false;
     }else if(is_main){
@@ -324,10 +325,8 @@ void Dictionary::threshold(int64_t t, int64_t tl) {
   words_.shrink_to_fit();
   size_ = 0;
   // TODO: Implement mainWord pruning functionality
-  //nwords_ = 0;
   nlabels_ = 0;
   std::fill(word2int_.begin(), word2int_.end(), -1);
-  //std::fill(mainWord2int_.begin(), mainWord2int_.end(), -1);
 
   for (auto it = words_.begin(); it != words_.end(); ++it) {
     int32_t h = find(it->word);
@@ -348,7 +347,7 @@ void Dictionary::initTableDiscard() {
 
 std::vector<int64_t> Dictionary::getCounts(entry_type type) const {
   std::vector<int64_t> counts;
-  for (auto& w : words_) {
+  for (auto& w : mainWords_) {
     if (w.type == type) counts.push_back(w.count);
   }
   return counts;
