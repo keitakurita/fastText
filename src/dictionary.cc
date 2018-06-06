@@ -24,6 +24,7 @@ namespace fasttext {
 const std::string Dictionary::EOS = "</s>";
 const std::string Dictionary::BOW = "<";
 const std::string Dictionary::EOW = ">";
+const std::string Dictionary::DELIM = "+";
 
 Dictionary::Dictionary(std::shared_ptr<Args> args) : args_(args),
   word2int_(MAX_VOCAB_SIZE, -1), mainWord2int_(MAX_VOCAB_SIZE / 5, -1), size_(0), nwords_(0), nlabels_(0),
@@ -35,7 +36,19 @@ Dictionary::Dictionary(std::shared_ptr<Args> args, std::istream& in) : args_(arg
 }
 
 std::tuple<std::string, std::string> Dictionary::extractMainSub(const std::string& w){
-    return std::make_tuple(w, w);
+  std::string main;
+  std::string sub;
+  bool is_main = true;
+  for(char c: w){
+    if(c == DELIM){
+      is_main = false;
+    }else if(is_main){
+      main.push_back(c);
+    }else{
+      sub.push_back(c);
+    }
+  }
+  return std::make_tuple(main, sub);
 }
 
 std::string Dictionary::extractMain(const std::string& w){
