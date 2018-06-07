@@ -88,6 +88,10 @@ int32_t Dictionary::mapMainWordtoId(const std::string& w) const {
     return id;
 }
 
+int32_t Dictionary::wordtomainIdx(int32_t wordIdx) const {
+  return words_[wordIdx].subwords[0];
+}
+
 void Dictionary::add(const std::string& w) {
   int32_t h = find(w);
   ntokens_++;
@@ -133,7 +137,7 @@ int64_t Dictionary::ntokens() const {
 
 const std::vector<int32_t>& Dictionary::getSubwords(int32_t i) const {
   assert(i >= 0);
-  assert(i < nwords_);
+  assert(i < size_);
   return words_[i].subwords;
 }
 
@@ -167,7 +171,7 @@ void Dictionary::getSubwords(const std::string& word,
 
 bool Dictionary::discard(int32_t id, real rand) const {
   assert(id >= 0);
-  assert(id < nwords_);
+  assert(id < size_);
   if (args_->model == model_name::sup) return false;
   return rand > pdiscard_[id];
 }

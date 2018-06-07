@@ -118,6 +118,7 @@ class Dictionary {
 
     std::tuple<std::string, std::string> extractMainSub(const std::string& w);
     std::string extractMain(const std::string& w);
+    int32_t wordtomainIdx(int32_t) const;
 };
 
 }

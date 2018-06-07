@@ -358,7 +358,7 @@ void FastText::skipgram(Model& model, real lr,
     const std::vector<int32_t>& ngrams = dict_->getSubwords(line[w]);
     for (int32_t c = -boundary; c <= boundary; c++) {
       if (c != 0 && w + c >= 0 && w + c < line.size()) {
-        model.update(ngrams, line[w + c], lr);
+        model.update(ngrams, dict_->wordtomainIdx(line[w + c]), lr);
       }
     }
   }
