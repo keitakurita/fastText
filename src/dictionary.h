@@ -20,7 +20,6 @@
 
 #include "args.h"
 #include "real.h"
-#include "urlhandler.h"
 
 namespace fasttext {
 
