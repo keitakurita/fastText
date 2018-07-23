@@ -10,6 +10,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import warnings
 import fasttext_pybind as fasttext
 import numpy as np
 
@@ -379,6 +380,11 @@ def train_unsupervised(
     dataset pulled by the example script word-vector-example.sh, which is
     part of the fastText repository.
     """
+    if minCount > 1:
+        warnings.warn("Setting minCount > 1 currently leads to all sorts of " + \
+                      "buggy behavior because of the logic to divide urls into their " + \
+                      "main and sub parts. The best practice is to set minCount=1 and " + \
+                      "handle count thresholding during preprocessing.")
     a = _build_args(locals())
     ft = _FastText()
     fasttext.train(ft.f, a)
